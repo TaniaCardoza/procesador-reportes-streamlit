@@ -1,9 +1,4 @@
-﻿<<<<<<< HEAD
-﻿
-import streamlit as st
-=======
 ﻿import streamlit as st
->>>>>>> 7ed0a62f621f034b93322e9fc6383cd4acbf9a9b
 import pandas as pd
 import numpy as np
 from io import BytesIO

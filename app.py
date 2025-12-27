@@ -280,60 +280,59 @@ if opcion == "Ventas":
                 xlsx_bytes = to_excel_bytes_with_title(final_report, title)
                 st.download_button("⬇Descargar Excel AGRUPADO", xlsx_bytes, file_name="reporte_ventas_agrupado.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", key="ventas_agrupado")
 
-
 elif opcion == "Compras":
-                st.header("Subir archivo de Compras")
-                uploaded_file = st.file_uploader("Sube tu archivo CSV, Excel o ZIP (conteniendo un CSV)", type=["csv", "xlsx", "zip"], key="compras")
+    st.header("Subir archivo de Compras")
+    uploaded_file = st.file_uploader("Sube tu archivo CSV, Excel o ZIP (conteniendo un CSV)", type=["csv", "xlsx", "zip"], key="compras")
 
-                if uploaded_file:
-                    df = read_file(uploaded_file)
+    if uploaded_file:
+        df = read_file(uploaded_file)
 
-                    if st.checkbox("Mostrar vista previa del archivo"):
-                        st.subheader("Vista previa del archivo")
-                        st.dataframe(df.head(10))
+        if st.checkbox("Mostrar vista previa del archivo"):
+            st.subheader("Vista previa del archivo")
+            st.dataframe(df.head(10))
 
-                    columnas_existentes = [c for c in CAMPOS_ORIGINALES_COMPRAS if c in df.columns]
-                    faltantes = [c for c in CAMPOS_ORIGINALES_COMPRAS if c not in df.columns]
+        columnas_existentes = [c for c in CAMPOS_ORIGINALES_COMPRAS if c in df.columns]
+        faltantes = [c for c in CAMPOS_ORIGINALES_COMPRAS if c not in df.columns]
 
-                    if faltantes:
-                        st.warning(f" No se encontraron estas columnas en tu archivo: {faltantes}")
-                    extra_cols = st.multiselect("Selecciona columnas adicionales (si deseas)", [c for c in df.columns if c not in columnas_existentes])
-                    
-                    cols_to_remove = st.multiselect(" Selecciona columnas que deseas QUITAR (si deseas)", columnas_existentes)
-                    
-                    columnas_finales = [c for c in columnas_existentes if c not in cols_to_remove]
+        if faltantes:
+            st.warning(f" No se encontraron estas columnas en tu archivo: {faltantes}")
+        extra_cols = st.multiselect("Selecciona columnas adicionales (si deseas)", [c for c in df.columns if c not in columnas_existentes])
+        
+        cols_to_remove = st.multiselect(" Selecciona columnas que deseas QUITAR (si deseas)", columnas_existentes)
+        
+        columnas_finales = [c for c in columnas_existentes if c not in cols_to_remove]
 
-                    df = df[columnas_finales + extra_cols].copy()
+        df = df[columnas_finales + extra_cols].copy()
 
-                    df = df.rename(columns=RENOMBRAR)
-                    columnas_numericas_compras = ["BI Gravado DG", "IGV / IPM DG", "Valor Adq. NG", "Total CP"]
-                    for c in columnas_numericas_compras:
-                        if c in df.columns:
-                            df[c] = clean_numeric_series(df[c])
+        df = df.rename(columns=RENOMBRAR)
+        columnas_numericas_compras = ["BI Gravado DG", "IGV / IPM DG", "Valor Adq. NG", "Total CP"]
+        for c in columnas_numericas_compras:
+            if c in df.columns:
+                df[c] = clean_numeric_series(df[c])
 
-                    def calculate_totals_compras(df, exclude_columns):
-                        numeric_columns = df.select_dtypes(include=np.number).columns
-                        columns_to_sum = [col for col in numeric_columns if col not in exclude_columns]
-                        return df[columns_to_sum].sum()
+        def calculate_totals_compras(df, exclude_columns):
+            numeric_columns = df.select_dtypes(include=np.number).columns
+            columns_to_sum = [col for col in numeric_columns if col not in exclude_columns]
+            return df[columns_to_sum].sum()
 
-                    exclude_columns_compras = ["Tipo Doc", "Nro", "Tipo Doc Identidad", "Nro Doc Identidad", "Nro CP Modificado"]
-                    totals = calculate_totals_compras(df, exclude_columns_compras)
+        exclude_columns_compras = ["Tipo Doc", "Nro", "Tipo Doc Identidad", "Nro Doc Identidad", "Nro CP Modificado"]
+        totals = calculate_totals_compras(df, exclude_columns_compras)
 
-                    total_row = {col: "" for col in df.columns}
-                    total_row["Apellidos Nombres/ Razón  Social"] = "TOTAL COMPRAS"
-                    for c in totals.index:
-                        total_row[c] = round(totals[c], 2)
+        total_row = {col: "" for col in df.columns}
+        total_row["Apellidos Nombres/ Razón  Social"] = "TOTAL COMPRAS"
+        for c in totals.index:
+            total_row[c] = round(totals[c], 2)
 
-                    df_with_total = pd.concat([df, pd.DataFrame([total_row])], ignore_index=True)
+        df_with_total = pd.concat([df, pd.DataFrame([total_row])], ignore_index=True)
 
-                    st.subheader("Reporte final con Totales")
-                    st.dataframe(df_with_total)
-                    title = "REPORTE DE COMPRAS"
-                    xlsx_bytes = to_excel_bytes_with_title(df_with_total, title)
-                    st.download_button(
-                        "⬇ Descargar Excel final",
-                        xlsx_bytes,
-                        file_name="reporte_compras.xlsx",
-                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                        key="compras_final"
-                    )
+        st.subheader("Reporte final con Totales")
+        st.dataframe(df_with_total)
+        title = "REPORTE DE COMPRAS"
+        xlsx_bytes = to_excel_bytes_with_title(df_with_total, title)
+        st.download_button(
+            "⬇ Descargar Excel final",
+            xlsx_bytes,
+            file_name="reporte_compras.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            key="compras_final"
+        )

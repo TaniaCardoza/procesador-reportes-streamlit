@@ -1,5 +1,9 @@
+﻿<<<<<<< HEAD
 ﻿
 import streamlit as st
+=======
+﻿import streamlit as st
+>>>>>>> 7ed0a62f621f034b93322e9fc6383cd4acbf9a9b
 import pandas as pd
 import numpy as np
 from io import BytesIO
@@ -281,6 +285,7 @@ if opcion == "Ventas":
                 xlsx_bytes = to_excel_bytes_with_title(final_report, title)
                 st.download_button("⬇Descargar Excel AGRUPADO", xlsx_bytes, file_name="reporte_ventas_agrupado.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", key="ventas_agrupado")
 
+
 elif opcion == "Compras":
                 st.header("Subir archivo de Compras")
                 uploaded_file = st.file_uploader("Sube tu archivo CSV, Excel o ZIP (conteniendo un CSV)", type=["csv", "xlsx", "zip"], key="compras")
@@ -328,7 +333,12 @@ elif opcion == "Compras":
 
                     st.subheader("Reporte final con Totales")
                     st.dataframe(df_with_total)
-
                     title = "REPORTE DE COMPRAS"
                     xlsx_bytes = to_excel_bytes_with_title(df_with_total, title)
-                    st.download_button("⬇ Descargar Excel final", xlsx_bytes, file_name="reporte_compras.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", key="compras_final")
+                    st.download_button(
+                        "⬇ Descargar Excel final",
+                        xlsx_bytes,
+                        file_name="reporte_compras.xlsx",
+                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                        key="compras_final"
+                    )

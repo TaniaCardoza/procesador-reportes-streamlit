@@ -121,8 +121,36 @@ def detect_missing_correlatives(df, serie_col="Serie", numero_col="Nro"):
     
     return missing_report
 
+def get_dynamic_title(df_, base_title):
+    """
+    Genera un título dinámico basado en la fecha de emisión del DataFrame
+    """
+    meses = {
+        1: "ENERO", 2: "FEBRERO", 3: "MARZO", 4: "ABRIL",
+        5: "MAYO", 6: "JUNIO", 7: "JULIO", 8: "AGOSTO",
+        9: "SEPTIEMBRE", 10: "OCTUBRE", 11: "NOVIEMBRE", 12: "DICIEMBRE"
+    }
+    
+    try:
+        # Buscar la columna de fecha de emisión
+        if "Fecha de emisión" in df_.columns:
+            # Obtener la primera fecha válida (ignorar valores vacíos o texto como "FACTURAS", "BOLETAS")
+            for fecha in df_["Fecha de emisión"]:
+                if pd.notna(fecha) and str(fecha).strip() not in ["", "FACTURAS", "BOLETAS"]:
+                    # Intentar convertir a datetime con formato DD/MM/YYYY
+                    fecha_dt = pd.to_datetime(fecha, format='%d/%m/%Y', errors='coerce')
+                    if pd.notna(fecha_dt):
+                        mes = meses.get(fecha_dt.month, "")
+                        anio = fecha_dt.year
+                        return f"{base_title} - {mes} {anio} -"
+    except:
+        pass
+    
+    # Si no se puede determinar la fecha, retornar el título base
+    return base_title
+
 def to_excel_bytes_with_title(df_, title):
-    from openpyxl.styles import Font, Alignment
+    from openpyxl.styles import Font, Alignment, Border, Side
     
     out = BytesIO()
     with pd.ExcelWriter(out, engine="openpyxl") as writer:
@@ -134,21 +162,52 @@ def to_excel_bytes_with_title(df_, title):
         worksheet.merge_cells(start_row=1, start_column=1, end_row=1, end_column=len(df_.columns))
         cell = worksheet.cell(row=1, column=1)
         cell.value = title
-        cell.font = Font(name="Arial", bold=True, size=9)
+        cell.font = Font(name="Arial", bold=True, size=8)
         cell.alignment = Alignment(horizontal="center")
         for col_idx, column in enumerate(df_.columns, start=1):
-            max_length = len(str(column))
+            # Calcular el ancho basándose solo en el contenido de los datos
+            max_length = 0
             for row in df_.values:
-                if row[col_idx-1] is not None:
+                if row[col_idx-1] is not None and str(row[col_idx-1]).strip() != "":
                     max_length = max(max_length, len(str(row[col_idx-1])))
-            adjusted_width = min(max_length + 2, 50) 
+            # Ancho mínimo de 8 y máximo de 50
+            adjusted_width = max(8, min(max_length + 1, 50))
             worksheet.column_dimensions[worksheet.cell(row=2, column=col_idx).column_letter].width = adjusted_width
 
             header_cell = worksheet.cell(row=2, column=col_idx)
-            header_cell.font = Font(name="Arial", bold=True, size=9)
+            header_cell.font = Font(name="Arial", bold=True, size=8)
+            header_cell.alignment = Alignment(wrap_text=True, vertical="top", horizontal="center")
         for row in worksheet.iter_rows(min_row=3, max_row=worksheet.max_row, min_col=1, max_col=len(df_.columns)):
             for cell in row:
-                cell.font = Font(name="Arial", size=9)
+                cell.font = Font(name="Arial", size=8)
+        
+        # Agregar línea negra encima de las filas de totales y debajo de FACTURAS/BOLETAS
+        for row_idx in range(3, worksheet.max_row + 1):
+            # Buscar en todas las columnas de la fila
+            row_text = ""
+            for col_idx in range(1, len(df_.columns) + 1):
+                cell_value = str(worksheet.cell(row=row_idx, column=col_idx).value)
+                row_text += cell_value.upper() + " "
+            
+            # Buscar filas que contengan "TOTAL" - línea superior
+            if "TOTAL" in row_text:
+                black_border = Border(top=Side(style='thin', color='000000'))
+                for col_idx in range(1, len(df_.columns) + 1):
+                    cell = worksheet.cell(row=row_idx, column=col_idx)
+                    cell.border = black_border
+            
+            # Buscar filas que contengan "FACTURAS" o "BOLETAS" - línea inferior
+            if "FACTURAS" in row_text or "BOLETAS" in row_text:
+                black_border = Border(bottom=Side(style='thin', color='000000'))
+                for col_idx in range(1, len(df_.columns) + 1):
+                    cell = worksheet.cell(row=row_idx, column=col_idx)
+                    cell.border = black_border
+        
+        # Configuración de página para impresión
+        worksheet.page_setup.orientation = worksheet.ORIENTATION_LANDSCAPE
+        worksheet.page_setup.fitToWidth = 1
+        worksheet.page_setup.fitToHeight = 0
+        worksheet.sheet_properties.pageSetUpPr.fitToPage = True
     
     return out.getvalue()
 
@@ -183,7 +242,7 @@ if opcion == "Ventas":
         st.subheader("Reporte final con Totales")
         st.dataframe(df_with_total)
         st.subheader("Descargar Reporte con Totales- SIN AGRUPAR")
-        title = "REPORTE DE VENTAS"
+        title = get_dynamic_title(df_with_total, "REPORTE DE VENTAS")
         xlsx_bytes_totales = to_excel_bytes_with_title(df_with_total, title)
         st.download_button("⬇Descargar Excel con Totales", xlsx_bytes_totales, file_name="reporte_ventas_totales.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", key="ventas_totales")
         if st.checkbox("Agrupar boletas por fecha"):
@@ -276,7 +335,7 @@ if opcion == "Ventas":
                 st.subheader(" Reporte final con agrupación y totales generales")
                 st.dataframe(final_report)
 
-                title = "REPORTE DE VENTAS"
+                title = get_dynamic_title(final_report, "REPORTE DE VENTAS")
                 xlsx_bytes = to_excel_bytes_with_title(final_report, title)
                 st.download_button("⬇Descargar Excel AGRUPADO", xlsx_bytes, file_name="reporte_ventas_agrupado.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", key="ventas_agrupado")
 
@@ -327,7 +386,7 @@ elif opcion == "Compras":
 
         st.subheader("Reporte final con Totales")
         st.dataframe(df_with_total)
-        title = "REPORTE DE COMPRAS"
+        title = get_dynamic_title(df_with_total, "REPORTE DE COMPRAS")
         xlsx_bytes = to_excel_bytes_with_title(df_with_total, title)
         st.download_button(
             "⬇ Descargar Excel final",

@@ -189,12 +189,13 @@ def to_excel_bytes_with_title(df_, title):
                 cell_value = str(worksheet.cell(row=row_idx, column=col_idx).value)
                 row_text += cell_value.upper() + " "
             
-            # Buscar filas que contengan "TOTAL" - línea superior
+            # Buscar filas que contengan "TOTAL" - línea superior y negrita
             if "TOTAL" in row_text:
                 black_border = Border(top=Side(style='thin', color='000000'))
                 for col_idx in range(1, len(df_.columns) + 1):
                     cell = worksheet.cell(row=row_idx, column=col_idx)
                     cell.border = black_border
+                    cell.font = Font(name="Arial", bold=True, size=8)
             
             # Buscar filas que contengan "FACTURAS" o "BOLETAS" - línea inferior
             if "FACTURAS" in row_text or "BOLETAS" in row_text:

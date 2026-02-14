@@ -206,6 +206,7 @@ def to_excel_bytes_with_title(df_, title):
         
         # Configuración de página para impresión
         worksheet.page_setup.orientation = worksheet.ORIENTATION_LANDSCAPE
+        worksheet.page_setup.paperSize = 9  # 9 = A4
         worksheet.page_setup.fitToWidth = 1
         worksheet.page_setup.fitToHeight = 0
         worksheet.sheet_properties.pageSetUpPr.fitToPage = True

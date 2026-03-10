@@ -49,6 +49,68 @@ RENOMBRAR = {
     "Nro CP o Doc. Nro Inicial (Rango)":"Nro",
 }
 
+# Diccionario de RUCs y nombres de empresas
+EMPRESAS_RUC = {
+
+    "20600081650": "BALANCEADOS BLANCA & JOSE LUIS E.I.R.L.",
+    "10409958970": "SOSA COSTI RODOLFO NELSON",
+    "20526165650": "EMPRESA DE TRANSPORTES DE PASAJEROS SANTA SOFIA SOCIEDAD DE RESPONSABILIDAD LIMITADA",
+    "10036548610": "MENDOZA CHAVEZ DORIS",
+    "20526543271": "EMPRESA DE TRANSPORTES DE PASAJEROS LA QUINTA S.R.L.",
+    "10036868371": "CARDOZA JIMENEZ LILIAN VERONICA",
+    "20525390561": "ETP MALLARES S.R.L.",
+    "20608133811": "EMPRESA DE TRANSPORTES FORTALEZA AMIGOS UNIDOS DE SULLANA S.A.C.",
+    "20605393951": "EMPRESA DE TRANSPORTE Y SERVICIOS GENERALES NARCISA DE JESUS E.I.R.L.",
+    "10763165821": "REVOLLEDO GUTIERREZ DARWIN ALEXIS",
+    "20611795271": "ROSSALUD PHARMACY E.I.R.L.",
+    "20526310412": "EMPRESA DE TRANSPORTES DIOS MIO SOCIEDAD COMERCIAL DE RESPONSABILIDAD LIMITADA",
+    "10751358194": "MEZA MONTERO HENRY JOEL",
+    "10460433946": "ALAMA ABARCA ROSA MERCEDES",
+    "10479164474": "UMBO DOMINGUEZ CESAR AUGUSTO",
+    "10413501194": "MOGOLLON PRADO CAROLINA DE JESUS",
+    "10027617374": "MADRID VARGAS PEDRO TEODOMIRO",
+    "10103145274": "GUIZAR FERNANDEZ CARLOS HUMBERTO",
+    "20526245335": "EMPRESA DE TRANSPORTES QUERECOTILLO TOURS SOCIEDAD ANONIMA CERRADA",
+    "20603114745": "TRANSPORTES MERARI S.A.",
+    "10722713295": "LORO FARFAN ANGEE SOPHIA DE FATIMA",
+    "10414088495": "CAMPOS BENITES FRANCISCO JAVIER",
+    "20609716585": "FERRETERIA & SERVICENTRO EL PARTIDOR-FERRESERVI EMPRESA INDIVIDUAL DE RESPONSABILIDAD LIMITADA",
+    "10486467555": "GRANDA SERNAQUE HENRRY DAVID",
+    "10751342115": "ZAPATA ESPIL MAURICIO JUNIOR",
+    "10028979385": "CARLIN RUIZ EDUARDO",
+    "10432666706": "CARRASCO CASTRO JUAN MANUEL",
+    "10036653316": "LADINES GONZALES GUSTAVO",
+    "10434042696": "ARGANDOÑA SINARAHUA JESSENIA DEL PILAR",
+    "20612032476": "SERVICIOS & NEGOCIOS GENERALES GUADMER S.A.C",
+    "20601019176": "COMERCIAL ALEXANDER C & V E.I.R.L.",
+    "10473696687": "LUPUCHE NAVARRO CARLOS ALBERTO",
+    "10036736327": "CARDOZA JIMENEZ YSELA CAROLINA",
+    "20526264127": "EMPRESA TRANSPORTE MALLASULL S.A.",
+    "10413153447": "PAULINI HUANCA GILBERTO",
+    "20530205348": "TRANSPORTES SEGUNDO EDUARDO REQUEJO SOCIEDAD ANONIMA CERRADA - TRANSEDUR S.A.C",
+    "20612709808": "COMERCIAL UMBO E.I.R.L",
+    "10435850508": "GARCIA MONTERO JULIO CESAR",
+    "10453609389": "GARCIA MONTERO MARIA DEL PILAR",
+    "20603268629": "R & E PREVENTION SERVICIOS GENERALES S.A.C.", 
+}
+
+def extraer_ruc_de_nombre_archivo(filename):
+    """
+    Extrae el RUC del nombre del archivo.
+    Busca un patrón de 11 dígitos en el nombre del archivo.
+    """
+    import re
+    # Buscar secuencia de exactamente 11 dígitos
+    patron = r'(\d{11})'
+    matches = re.findall(patron, filename)
+    
+    # Retornar el primer RUC válido encontrado (que empiece con 10 o 20)
+    for match in matches:
+        if match.startswith('10') or match.startswith('20'):
+            return match
+    
+    return None
+
 
 opcion = st.radio("Selecciona el tipo de archivo que deseas procesar:", ["Ventas", "Compras"], horizontal=True)
 
@@ -121,15 +183,23 @@ def detect_missing_correlatives(df, serie_col="Serie", numero_col="Nro"):
     
     return missing_report
 
-def get_dynamic_title(df_, base_title):
+def get_dynamic_title(df_, base_title, filename=None):
     """
     Genera un título dinámico basado en la fecha de emisión del DataFrame
+    y el RUC extraído del nombre del archivo
     """
     meses = {
         1: "ENERO", 2: "FEBRERO", 3: "MARZO", 4: "ABRIL",
         5: "MAYO", 6: "JUNIO", 7: "JULIO", 8: "AGOSTO",
         9: "SEPTIEMBRE", 10: "OCTUBRE", 11: "NOVIEMBRE", 12: "DICIEMBRE"
     }
+    
+    # Extraer nombre de empresa del RUC en el nombre del archivo
+    nombre_empresa = ""
+    if filename:
+        ruc = extraer_ruc_de_nombre_archivo(filename)
+        if ruc and ruc in EMPRESAS_RUC:
+            nombre_empresa = f" - {EMPRESAS_RUC[ruc]}"
     
     try:
         # Buscar la columna de fecha de emisión
@@ -142,12 +212,12 @@ def get_dynamic_title(df_, base_title):
                     if pd.notna(fecha_dt):
                         mes = meses.get(fecha_dt.month, "")
                         anio = fecha_dt.year
-                        return f"{base_title} - {mes} {anio} -"
+                        return f"{base_title} - {mes} {anio}{nombre_empresa}"
     except:
         pass
     
-    # Si no se puede determinar la fecha, retornar el título base
-    return base_title
+    # Si no se puede determinar la fecha, retornar el título base con empresa
+    return f"{base_title}{nombre_empresa}" if nombre_empresa else base_title
 
 def to_excel_bytes_with_title(df_, title):
     from openpyxl.styles import Font, Alignment, Border, Side
@@ -219,6 +289,17 @@ if opcion == "Ventas":
 
     if uploaded_file:
         df = read_file(uploaded_file)
+        
+        # Mostrar información de la empresa detectada
+        ruc_detectado = extraer_ruc_de_nombre_archivo(uploaded_file.name)
+        if ruc_detectado and ruc_detectado in EMPRESAS_RUC:
+            st.info(f"🏢 Empresa detectada: {EMPRESAS_RUC[ruc_detectado]} (RUC: {ruc_detectado})")
+        else:
+            if ruc_detectado:
+                st.warning(f"⚠️ RUC detectado ({ruc_detectado}) no está registrado en el sistema. Agréguelo al diccionario EMPRESAS_RUC.")
+            else:
+                st.warning(f"⚠️ No se detectó ningún RUC en el nombre del archivo: {uploaded_file.name}")
+        
         if st.checkbox(" Mostrar vista previa del archivo original"):
             st.subheader(" Vista previa del archivo")
             st.dataframe(df.head(10))
@@ -233,7 +314,13 @@ if opcion == "Ventas":
         for c in ["BI Gravada", "IGV / IPM", "Total CP"]:
             if c in df.columns:
                 df[c] = clean_numeric_series(df[c])
-        totals = df.select_dtypes(include=np.number).sum()
+        
+        # Calcular totales excluyendo columnas que no deben sumarse
+        exclude_columns = ["Tipo Doc", "Nro", "Nro Doc Identidad", "Fecha de emisión", "Fecha Vcto/Pago"]
+        numeric_columns = df.select_dtypes(include=np.number).columns
+        columns_to_sum = [col for col in numeric_columns if col not in exclude_columns]
+        totals = df[columns_to_sum].sum()
+        
         total_row = {col: "" for col in df.columns}
         total_row["Apellidos Nombres/ Razón Social"] = "TOTAL VENTAS"
         for c in totals.index:
@@ -244,7 +331,7 @@ if opcion == "Ventas":
         st.subheader("Reporte final con Totales")
         st.dataframe(df_with_total)
         st.subheader("Descargar Reporte con Totales- SIN AGRUPAR")
-        title = get_dynamic_title(df_with_total, "REPORTE DE VENTAS")
+        title = get_dynamic_title(df_with_total, "REPORTE DE VENTAS", uploaded_file.name)
         xlsx_bytes_totales = to_excel_bytes_with_title(df_with_total, title)
         st.download_button("⬇Descargar Excel con Totales", xlsx_bytes_totales, file_name="reporte_ventas_totales.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", key="ventas_totales")
         if st.checkbox("Agrupar boletas por fecha"):
@@ -296,7 +383,7 @@ if opcion == "Ventas":
                     columns_to_sum = [col for col in numeric_columns if col not in exclude_columns]
                     return df[columns_to_sum].sum()
 
-                exclude_columns = ["Tipo Doc", "Nro Doc Identidad"]
+                exclude_columns = ["Tipo Doc", "Nro", "Nro Doc Identidad", "Fecha de emisión", "Fecha Vcto/Pago"]
 
                 total_facturas = calculate_totals(final_report[final_report["Tipo Doc"] == 1], exclude_columns)
                 total_boletas = calculate_totals(final_report[final_report["Tipo Doc"] == 3], exclude_columns)
@@ -337,7 +424,7 @@ if opcion == "Ventas":
                 st.subheader(" Reporte final con agrupación y totales generales")
                 st.dataframe(final_report)
 
-                title = get_dynamic_title(final_report, "REPORTE DE VENTAS")
+                title = get_dynamic_title(final_report, "REPORTE DE VENTAS", uploaded_file.name)
                 xlsx_bytes = to_excel_bytes_with_title(final_report, title)
                 st.download_button("⬇Descargar Excel AGRUPADO", xlsx_bytes, file_name="reporte_ventas_agrupado.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", key="ventas_agrupado")
 
@@ -347,6 +434,16 @@ elif opcion == "Compras":
 
     if uploaded_file:
         df = read_file(uploaded_file)
+        
+        # Mostrar información de la empresa detectada
+        ruc_detectado = extraer_ruc_de_nombre_archivo(uploaded_file.name)
+        if ruc_detectado and ruc_detectado in EMPRESAS_RUC:
+            st.info(f"🏢 Empresa detectada: {EMPRESAS_RUC[ruc_detectado]} (RUC: {ruc_detectado})")
+        else:
+            if ruc_detectado:
+                st.warning(f"⚠️ RUC detectado ({ruc_detectado}) no está registrado en el sistema. Agréguelo al diccionario EMPRESAS_RUC.")
+            else:
+                st.warning(f"⚠️ No se detectó ningún RUC en el nombre del archivo: {uploaded_file.name}")
 
         if st.checkbox("Mostrar vista previa del archivo"):
             st.subheader("Vista previa del archivo")
@@ -376,7 +473,7 @@ elif opcion == "Compras":
             columns_to_sum = [col for col in numeric_columns if col not in exclude_columns]
             return df[columns_to_sum].sum()
 
-        exclude_columns_compras = ["Tipo Doc", "Nro", "Tipo Doc Identidad", "Nro Doc Identidad", "Nro CP Modificado"]
+        exclude_columns_compras = ["Tipo Doc", "Nro", "Tipo Doc Identidad", "Nro Doc Identidad", "Nro CP Modificado", "Fecha de emisión", "Fecha Vcto/Pago", "Fecha Emisión Doc Modificado"]
         totals = calculate_totals_compras(df, exclude_columns_compras)
 
         total_row = {col: "" for col in df.columns}
@@ -388,7 +485,7 @@ elif opcion == "Compras":
 
         st.subheader("Reporte final con Totales")
         st.dataframe(df_with_total)
-        title = get_dynamic_title(df_with_total, "REPORTE DE COMPRAS")
+        title = get_dynamic_title(df_with_total, "REPORTE DE COMPRAS", uploaded_file.name)
         xlsx_bytes = to_excel_bytes_with_title(df_with_total, title)
         st.download_button(
             "⬇ Descargar Excel final",
